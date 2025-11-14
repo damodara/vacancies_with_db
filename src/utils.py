@@ -28,6 +28,29 @@ class DBManager:
         cur.close()
         conn.close()
 
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS companies (
+                    companies_id SERIAL PRIMARY KEY,
+                    title VARCHAR(255)
+                )
+            """)
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS vacancies (
+                    vacancies_id SERIAL PRIMARY KEY,
+                    company_id INT REFERENCES companies(companies_id),
+                    title VARCHAR(255),
+                    description VARCHAR,
+                    salary FLOAT,
+                    url VARCHAR(255)
+                )
+            """)
+        conn.commit()
+        conn.close()
+
     def get_companies_and_vacancies_count(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает список всех компаний и количество вакансий у каждой компании"""
         all_companies_name = set()
