@@ -1,5 +1,6 @@
 from src.api_connector import HeadHunterAPI
 from src.utils import DBManager
+from config import config
 
 def main():
     employer_ids = [
@@ -27,9 +28,12 @@ def main():
     #     print(f"- Название: {vacancy['name']}")
     #     print(f"- Компания: {vacancy['employer']['name']}\n")
     db_manager = DBManager()
-    db_manager.get_companies_and_vacancies_count(loaded_vacancies)
-    db_manager.get_all_vacancies(loaded_vacancies)
-    db_manager.get_avg_salary(loaded_vacancies)
+    # db_manager.get_companies_and_vacancies_count(loaded_vacancies)
+    # db_manager.get_all_vacancies(loaded_vacancies)
+    # db_manager.get_avg_salary(loaded_vacancies)
+
+    params = config()
+    db_manager.create_db("hh", params)
 
 
 if __name__ == '__main__':

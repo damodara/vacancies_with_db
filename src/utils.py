@@ -6,7 +6,29 @@ class DBManager:
     def __init__(self):
         self.db = None
 
-    def get_companies_and_vacancies_count(self, loaded_vacancies:  list[dict[str, Any]]):
+    def create_db(self, database_name: str, params: dict[str, Any]) -> None:
+        """Создание БД PostgreSQL"""
+        conn = psycopg2.connect(dbname='postgres', **params)
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        try:
+            # Попытка удалить старую базу данных
+            cur.execute(f"DROP DATABASE IF EXISTS {database_name};")
+        except psycopg2.DatabaseError as error:
+            print(f"Ошибка при удалении старой базы данных: {error}")
+
+        try:
+            # Создание новой базы данных
+            cur.execute(f"CREATE DATABASE {database_name};")
+            print(f"Новая база данных {database_name} успешно создана.")
+        except psycopg2.DatabaseError as error:
+            print(f"Ошибка при создании базы данных: {error}")
+
+        cur.close()
+        conn.close()
+
+    def get_companies_and_vacancies_count(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает список всех компаний и количество вакансий у каждой компании"""
         all_companies_name = set()
         all_companies_count: int
@@ -20,7 +42,7 @@ class DBManager:
 
 
 
-    def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]]):
+    def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на
         вакансию."""
         list_vacancies = []
@@ -47,7 +69,7 @@ class DBManager:
 
 
 
-    def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]]):
+    def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает среднюю зарплату по вакансиям."""
         total_salary = 0
         count = 0
@@ -62,10 +84,10 @@ class DBManager:
 
 
 
-    def get_vacancies_with_higher_salary(self, loaded_vacancies:  list[dict[str, Any]]):
+    def get_vacancies_with_higher_salary(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает список всех вакансий, у которых зарплата выше средней по всем вакансиям."""
         pass
 
-    def get_vacancies_with_keyword(self, loaded_vacancies:  list[dict[str, Any]]):
+    def get_vacancies_with_keyword(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
         """получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
         pass
