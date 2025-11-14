@@ -11,7 +11,7 @@ def main():
         # "895945",  # 6 Правительство Москвы
         # "2748",  # 7 Ростелеком
         # "4181",  # 8 Банк ВТБ
-        "4029257",  # 9 РУСАЛ
+        # "4029257",  # 9 РУСАЛ
         # "9694561",  # 10 Яндекс.Еда
     ]
 
@@ -29,6 +29,7 @@ def main():
     db_manager = DBManager()
     db_manager.get_companies_and_vacancies_count(loaded_vacancies)
     db_manager.get_all_vacancies(loaded_vacancies)
+    db_manager.get_avg_salary(loaded_vacancies)
 
 
 if __name__ == '__main__':

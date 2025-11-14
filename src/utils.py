@@ -49,6 +49,16 @@ class DBManager:
 
     def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]]):
         """получает среднюю зарплату по вакансиям."""
+        total_salary = 0
+        count = 0
+        for vacancy in loaded_vacancies:
+            salary = vacancy['salary'].get('from')
+            if salary:
+                total_salary += salary
+                count += 1
+        avg_salary = total_salary / count
+        rounded_salary = round(avg_salary, 2)
+        print(f"Среднаяя зарплата: {rounded_salary} руб.")
 
 
 
