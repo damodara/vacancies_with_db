@@ -57,23 +57,35 @@ class DBManager:
 
     def get_companies_and_vacancies_count(self, loaded_vacancies: list[dict[str, Any]], database_name: str) -> None:
         """получает список всех компаний и количество вакансий у каждой компании"""
-        # Получаем параметры подключения из config-функции
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
             for company in loaded_vacancies:
                 company_title = company['employer']['name']
-                cur.execute("""
-                            INSERT INTO companies (title)
-                            VALUES (%s)
-                            RETURNING companies_id
-                            """, (company_title,))
-                company_id = cur.fetchone()[0]
 
-                # Берём название первого профессионального направления
+                # Сначала проверяем, существует ли компания в базе данных
+                cur.execute("""
+                            SELECT companies_id
+                            FROM companies
+                            WHERE title = %s
+                            """, (company_title,))
+                existing_company = cur.fetchone()
+
+                if existing_company:
+                    # Если компания уже существует, берем её id
+                    company_id = existing_company[0]
+                else:
+                    # Иначе добавляем новую компанию и получаем её id
+                    cur.execute("""
+                                INSERT INTO companies (title)
+                                VALUES (%s)
+                                RETURNING companies_id
+                                """, (company_title,))
+                    company_id = cur.fetchone()[0]
+
+                # Далее обрабатываем вакансию
                 first_role = company['professional_roles'][0]
                 vacancies_title = first_role['name']
-
                 description = company['snippet']['responsibility']
                 salary = company['salary']['from'] if company['salary'] else None
                 url = company['alternate_url']
