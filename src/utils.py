@@ -42,15 +42,16 @@ class DBManager:
 
         with conn.cursor() as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS vacancies (
-                    vacancies_id SERIAL PRIMARY KEY,
-                    company_id INT REFERENCES companies(companies_id),
-                    title VARCHAR(255),
-                    description VARCHAR,
-                    salary FLOAT,
-                    url VARCHAR
-                )
-            """)
+                        CREATE TABLE IF NOT EXISTS vacancies
+                        (
+                            vacancies_id SERIAL PRIMARY KEY,
+                            company_id   INT REFERENCES companies (companies_id),
+                            title        VARCHAR(255),
+                            description  VARCHAR,
+                            salary       FLOAT,
+                            url          VARCHAR UNIQUE -- Ограничиваем уникальностью поле url
+                        )
+                        """)
             print("таблица vacancies создана")
         conn.commit()
         conn.close()
@@ -59,11 +60,12 @@ class DBManager:
         """получает список всех компаний и количество вакансий у каждой компании"""
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
+
         with conn.cursor() as cur:
             for company in loaded_vacancies:
                 company_title = company['employer']['name']
 
-                # Сначала проверяем, существует ли компания в базе данных
+                # Проверяем существование компании
                 cur.execute("""
                             SELECT companies_id
                             FROM companies
@@ -72,10 +74,8 @@ class DBManager:
                 existing_company = cur.fetchone()
 
                 if existing_company:
-                    # Если компания уже существует, берем её id
                     company_id = existing_company[0]
                 else:
-                    # Иначе добавляем новую компанию и получаем её id
                     cur.execute("""
                                 INSERT INTO companies (title)
                                 VALUES (%s)
@@ -83,17 +83,28 @@ class DBManager:
                                 """, (company_title,))
                     company_id = cur.fetchone()[0]
 
-                # Далее обрабатываем вакансию
+                # Данные о вакансиях
                 first_role = company['professional_roles'][0]
                 vacancies_title = first_role['name']
                 description = company['snippet']['responsibility']
                 salary = company['salary']['from'] if company['salary'] else None
                 url = company['alternate_url']
 
+                # Проверяем существование вакансии по URL
                 cur.execute("""
-                            INSERT INTO vacancies (company_id, title, description, salary, url)
-                            VALUES (%s, %s, %s, %s, %s)
-                            """, (company_id, vacancies_title, description, salary, url))
+                            SELECT vacancies_id
+                            FROM vacancies
+                            WHERE url = %s
+                            """, (url,))
+                existing_vacancy = cur.fetchone()
+
+                if not existing_vacancy:
+                    # Вакансия ещё не существует, добавляем её
+                    cur.execute("""
+                                INSERT INTO vacancies (company_id, title, description, salary, url)
+                                VALUES (%s, %s, %s, %s, %s)
+                                """, (company_id, vacancies_title, description, salary, url))
+
         conn.commit()
         conn.close()
         print("данные добавили в таблицы")
