@@ -5,15 +5,15 @@ from config import config
 def main():
     employer_ids = [
         "1907894",  # 1 red
-        # "1455",  # 2 hh.ru
-        # "4352",  # 3 pochta
-        # "1942330",  # 4 pyatyorochka
-        # "1122462",  # 5 skyENG
-        # "895945",  # 6 Правительство Москвы
-        # "2748",  # 7 Ростелеком
-        # "4181",  # 8 Банк ВТБ
-        # "4029257",  # 9 РУСАЛ
-        # "9694561",  # 10 Яндекс.Еда
+        "1171877",  # globus
+        "11545313",  # 3 Солюшен
+        "9152217",  # 4 Код Грин Инжиниринг
+        "1122462",  # 5 skyENG
+        "45124",  # 6 Zecurion
+        "4138182",  # 7 Topface Media
+        "1911403",  # 8 Angara Security
+        "4888751",  # 9 Рекруто
+        "5591530",  # 10 IT-hunters
     ]
 
     # Создаем объект API
@@ -28,12 +28,13 @@ def main():
     #     print(f"- Название: {vacancy['name']}")
     #     print(f"- Компания: {vacancy['employer']['name']}\n")
     db_manager = DBManager()
-    # db_manager.get_companies_and_vacancies_count(loaded_vacancies)
+    params = config()
+    db_manager.create_db("headhunter", params)
+    db_manager.get_companies_and_vacancies_count(loaded_vacancies, "headhunter")
     # db_manager.get_all_vacancies(loaded_vacancies)
     # db_manager.get_avg_salary(loaded_vacancies)
 
-    params = config()
-    db_manager.create_db("hh", params)
+
 
 
 if __name__ == '__main__':

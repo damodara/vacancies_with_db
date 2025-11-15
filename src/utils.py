@@ -1,6 +1,8 @@
 from typing import Any
-
 import psycopg2
+from config import config
+
+
 class DBManager:
     """Класс для подключения к БД PostgreSQL"""
     def __init__(self):
@@ -33,9 +35,10 @@ class DBManager:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS companies (
                     companies_id SERIAL PRIMARY KEY,
-                    title VARCHAR(255)
+                    title VARCHAR(255) UNIQUE 
                 )
             """)
+            print("таблица companies создана")
 
         with conn.cursor() as cur:
             cur.execute("""
@@ -45,27 +48,59 @@ class DBManager:
                     title VARCHAR(255),
                     description VARCHAR,
                     salary FLOAT,
-                    url VARCHAR(255)
+                    url VARCHAR
                 )
             """)
+            print("таблица vacancies создана")
         conn.commit()
         conn.close()
 
-    def get_companies_and_vacancies_count(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
+    def get_companies_and_vacancies_count(self, loaded_vacancies: list[dict[str, Any]], database_name: str) -> None:
         """получает список всех компаний и количество вакансий у каждой компании"""
-        all_companies_name = set()
-        all_companies_count: int
-        for vacancy in loaded_vacancies:
-            company_name = vacancy['employer']['name']
-            all_companies_name.add(company_name)
+        # Получаем параметры подключения из config-функции
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            for company in loaded_vacancies:
+                company_title = company['employer']['name']
+                cur.execute("""
+                            INSERT INTO companies (title)
+                            VALUES (%s)
+                            RETURNING companies_id
+                            """, (company_title,))
+                company_id = cur.fetchone()[0]
 
-        print(f"Список всех компаний: {all_companies_name}")
-        all_companies_count = len(all_companies_name)
-        print(f"Количество всех компаний: {all_companies_count}")
+                # Берём название первого профессионального направления
+                first_role = company['professional_roles'][0]
+                vacancies_title = first_role['name']
+
+                description = company['snippet']['responsibility']
+                salary = company['salary']['from'] if company['salary'] else None
+                url = company['alternate_url']
+
+                cur.execute("""
+                            INSERT INTO vacancies (company_id, title, description, salary, url)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """, (company_id, vacancies_title, description, salary, url))
+        conn.commit()
+        conn.close()
+        print("данные добавили в таблицы")
 
 
 
-    def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
+        # all_companies_name = set()
+        # all_companies_count: int
+        # for vacancy in loaded_vacancies:
+        #     company_name = vacancy['employer']['name']
+        #     all_companies_name.add(company_name)
+        #
+        # print(f"Список всех компаний: {all_companies_name}")
+        # all_companies_count = len(all_companies_name)
+        # print(f"Количество всех компаний: {all_companies_count}")
+
+
+
+    def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
         """получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на
         вакансию."""
         list_vacancies = []
@@ -92,7 +127,7 @@ class DBManager:
 
 
 
-    def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
+    def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
         """получает среднюю зарплату по вакансиям."""
         total_salary = 0
         count = 0
@@ -107,10 +142,10 @@ class DBManager:
 
 
 
-    def get_vacancies_with_higher_salary(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
+    def get_vacancies_with_higher_salary(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
         """получает список всех вакансий, у которых зарплата выше средней по всем вакансиям."""
         pass
 
-    def get_vacancies_with_keyword(self, loaded_vacancies:  list[dict[str, Any]]) -> None:
+    def get_vacancies_with_keyword(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
         """получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
         pass
