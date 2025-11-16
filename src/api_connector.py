@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
 import requests
 
 
@@ -32,12 +33,11 @@ class HeadHunterAPI(VacancyAPI):
 
     def __init__(self):
         super().__init__()
-        self._base_url = "https://api.hh.ru/vacancies"  # Верный URL для получения вакансий
+        self._base_url = (
+            "https://api.hh.ru/vacancies"  # Верный URL для получения вакансий
+        )
         self._headers = {"User-Agent": "HH-User-Agent"}
-        self._params = {
-            "page": 0,
-            "per_page": 100
-        }
+        self._params = {"page": 0, "per_page": 100}
 
     def _connect_to_api(self) -> bool:
         try:

@@ -1,203 +1,235 @@
 from typing import Any
+
 import psycopg2
+
 from config import config
 
 
 class DBManager:
-    """Класс для подключения к БД PostgreSQL"""
+    """Класс для управления взаимодействием с базой данных PostgreSQL."""
+
     def __init__(self):
+        """Конструктор класса, инициализирует поля класса."""
         self.db = None
 
-    def create_db(self,loaded_vacancies,  database_name: str, params: dict[str, Any]) -> None:
-        """Создание БД PostgreSQL"""
-        conn = psycopg2.connect(dbname='postgres', **params)
+    def create_db(
+        self, loaded_vacancies: list, database_name: str, params: dict[str, Any]
+    ) -> None:
+        """
+        Создает новую базу данных и наполняет её информацией о компаниях и вакансиях.
+        Аргументы:
+          - loaded_vacancies (list): Список загруженных вакансий.
+          - database_name (str): Имя создаваемой базы данных.
+          - params (dict): Параметры подключения к серверу PostgreSQL.
+        """
+        # Удаляем существующую базу данных, если она имеется
+        conn = psycopg2.connect(dbname="postgres", **params)
         conn.autocommit = True
         cur = conn.cursor()
-
         try:
-            # Попытка удалить старую базу данных
             cur.execute(f"DROP DATABASE IF EXISTS {database_name};")
-        except psycopg2.DatabaseError as error:
-            print(f"Ошибка при удалении старой базы данных: {error}")
+        except psycopg2.DatabaseError as err:
+            print(f"Ошибка удаления базы данных: {err}")
+        finally:
+            cur.close()
+            conn.close()
 
+        # Создаем новую базу данных
+        conn = psycopg2.connect(dbname="postgres", **params)
+        conn.autocommit = True
+        cur = conn.cursor()
         try:
-            # Создание новой базы данных
             cur.execute(f"CREATE DATABASE {database_name};")
-            print(f"Новая база данных {database_name} успешно создана.")
-        except psycopg2.DatabaseError as error:
-            print(f"Ошибка при создании базы данных: {error}")
+            print(f"База данных {database_name} успешно создана.")
+        except psycopg2.DatabaseError as err:
+            print(f"Ошибка создания базы данных: {err}")
+        finally:
+            cur.close()
+            conn.close()
 
-        cur.close()
-        conn.close()
-        #Создание таблицы companies
+        # Создаем таблицы в новой базе данных
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            cur.execute("""
+            # Таблица компаний
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS companies (
                     companies_id SERIAL PRIMARY KEY,
-                    title VARCHAR(255) UNIQUE 
-                )
-            """)
-            print("Таблица companies создана")
-        # Создание таблицы vacancies
-        with conn.cursor() as cur:
-            cur.execute("""
-                        CREATE TABLE IF NOT EXISTS vacancies
-                        (
-                            vacancies_id SERIAL PRIMARY KEY,
-                            company_id   INT REFERENCES companies (companies_id),
-                            title        VARCHAR(255),
-                            description  VARCHAR,
-                            salary       FLOAT,
-                            url          VARCHAR UNIQUE -- Ограничиваем уникальностью поле url
-                        )
-                        """)
-            print("Таблица vacancies создана")
-        # Наполнение таблицы companies и vacancies
-        with conn.cursor() as cur:
-            for company in loaded_vacancies:
-                company_title = company['employer']['name']
+                    title VARCHAR(255) UNIQUE
+                );
+            """
+            )
 
-                # Проверяем существование компании
-                cur.execute("""
-                            SELECT companies_id
-                            FROM companies
-                            WHERE title = %s
-                            """, (company_title,))
+            # Таблица вакансий
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS vacancies (
+                    vacancies_id SERIAL PRIMARY KEY,
+                    company_id INT REFERENCES companies(companies_id),
+                    title VARCHAR(255),
+                    description VARCHAR,
+                    salary FLOAT,
+                    url VARCHAR UNIQUE
+                );
+            """
+            )
+
+            # Заполняем таблицы данными
+            for company_data in loaded_vacancies:
+                company_title = company_data["employer"]["name"]
+
+                # Проверяем, существует ли компания
+                cur.execute(
+                    "SELECT companies_id FROM companies WHERE title=%s;",
+                    (company_title,),
+                )
                 existing_company = cur.fetchone()
 
                 if existing_company:
                     company_id = existing_company[0]
                 else:
-                    cur.execute("""
-                                INSERT INTO companies (title)
-                                VALUES (%s)
-                                RETURNING companies_id
-                                """, (company_title,))
+                    cur.execute(
+                        "INSERT INTO companies(title) VALUES(%s) RETURNING companies_id;",
+                        (company_title,),
+                    )
                     company_id = cur.fetchone()[0]
 
                 # Данные о вакансиях
-                first_role = company['professional_roles'][0]
-                vacancies_title = first_role['name']
-                description = company['snippet']['responsibility']
-                salary = company['salary']['from'] if company['salary'] else None
-                url = company['alternate_url']
+                role = (
+                    company_data["professional_roles"][0]["name"]
+                    if company_data["professional_roles"]
+                    else ""
+                )
+                vacancy_title = role or company_data["name"]
+                description = (
+                    company_data["snippet"]["responsibility"]
+                    if company_data["snippet"]
+                    else ""
+                )
+                salary = (
+                    company_data["salary"]["from"] if company_data["salary"] else None
+                )
+                url = company_data["alternate_url"]
 
-                # Проверяем существование вакансии по URL
-                cur.execute("""
-                            SELECT vacancies_id
-                            FROM vacancies
-                            WHERE url = %s
-                            """, (url,))
+                # Проверяем, существует ли вакансия по URL
+                cur.execute("SELECT vacancies_id FROM vacancies WHERE url=%s;", (url,))
                 existing_vacancy = cur.fetchone()
 
                 if not existing_vacancy:
                     # Вакансия ещё не существует, добавляем её
-                    cur.execute("""
-                                INSERT INTO vacancies (company_id, title, description, salary, url)
-                                VALUES (%s, %s, %s, %s, %s)
-                                """, (company_id, vacancies_title, description, salary, url))
+                    cur.execute(
+                        """
+                        INSERT INTO vacancies(company_id, title, description, salary, url)
+                        VALUES (%s, %s, %s, %s, %s);
+                    """,
+                        (company_id, vacancy_title, description, salary, url),
+                    )
 
         conn.commit()
         conn.close()
 
     def get_companies_and_vacancies_count(self, database_name: str) -> None:
-        """Получает список всех компаний и количество вакансий у каждой компании из базы данных"""
+        """
+        Возвращает список всех компаний и количество вакансий у каждой компании.
+        Аргумент:
+          - database_name (str): Название базы данных.
+        """
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем компании и количество вакансий
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT companies.title, COUNT(vacancies.vacancies_id) AS vacancies_count
                 FROM companies
                 LEFT JOIN vacancies ON companies.companies_id = vacancies.company_id
-                GROUP BY companies.companies_id
-            """)
+                GROUP BY companies.companies_id;
+            """
+            )
             results = cur.fetchall()
-            # print(results)
-        # Вывод результата
+
         print("\nСписок компаний и количество вакансий:")
         for idx, row in enumerate(results, start=1):
-            print(f"{idx}. Компания: - {row[0]} - Количество вакансий: {row[1]}")
+            print(f"{idx}. Компания: {row[0]} - Количество вакансий: {row[1]}")
         conn.close()
-
 
     def get_all_vacancies(self, database_name: str) -> None:
-        """получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на
-        вакансию."""
+        """
+        Возвращает список всех вакансий с названием компании, вакансии, зарплаты и ссылкой на вакансию.
+        Аргумент:
+          - database_name (str): Название базы данных.
+        """
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем список вакансий
-            cur.execute("""
-                        SELECT 
-                            companies.title AS company_name, 
-                            vacancies.title AS job_title, 
-                            vacancies.salary AS salary, 
-                            vacancies.url AS vacancy_link
-                        FROM 
-                            vacancies
-                        INNER JOIN 
-                            companies ON vacancies.company_id = companies.companies_id;
-                        """)
+            cur.execute(
+                """
+                SELECT companies.title AS company_name,
+                       vacancies.title AS job_title,
+                       vacancies.salary AS salary,
+                       vacancies.url AS vacancy_link
+                FROM vacancies
+                INNER JOIN companies ON vacancies.company_id = companies.companies_id;
+            """
+            )
             results = cur.fetchall()
-            # print(results)
-        # Вывод результата
+
         print("\nСписок вакансий:")
         for idx, row in enumerate(results, start=1):
-            print(f"{idx}. Компания: - {row[0]} - Вакансия: {row[1]} - Зарплата от: {row[2]}, URL: {row[3]}")
+            print(
+                f"{idx}. Компания: {row[0]} - Вакансия: {row[1]} - Зарплата от: {row[2]}, URL: {row[3]}"
+            )
         conn.close()
-
 
     def get_avg_salary(self, database_name: str) -> None:
-        """получает среднюю зарплату по вакансиям."""
+        """
+        Возвращает среднюю зарплату по всем вакансиям.
+        Аргумент:
+          - database_name (str): Название базы данных.
+        """
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем среднюю зарплату
-            cur.execute("""
-                        SELECT AVG(salary)
-                        FROM vacancies
-                        """)
-            results = cur.fetchall()
-            # print(results)
-        # Вывод результата
-        print("\nСредняя зарплата:")
-        for row in results:
-            print(f" - {round(row[0])} руб")
-        conn.close()
+            cur.execute("SELECT AVG(salary) FROM vacancies;")
+            avg_salary = round(cur.fetchone()[0])
 
+        print(f"\nСредняя зарплата: {avg_salary} рублей.")
+        conn.close()
 
     def get_vacancies_with_higher_salary(self, database_name: str) -> None:
-        """получает список всех вакансий, у которых зарплата выше средней по всем вакансиям."""
+        """
+        Возвращает список вакансий с зарплатой выше средней.
+        Аргумент:
+          - database_name (str): Название базы данных.
+        """
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем вакансии и их зарплату
-            cur.execute("""
-                        SELECT title, salary
-                        FROM vacancies
-                        WHERE salary > (
-                            SELECT AVG(salary)
-                            FROM vacancies
-                        )
-                        ORDER BY SALARY;
-                        """)
+            cur.execute(
+                """
+                SELECT title, salary
+                FROM vacancies
+                WHERE salary > (SELECT AVG(salary) FROM vacancies)
+                ORDER BY salary ASC;
+            """
+            )
             results = cur.fetchall()
-            # print(results)
-        # Вывод результата
-        print("\nВакансии, у которых зарплата выше средней:")
+
+        print("\nВакансии с зарплатой выше средней:")
         for idx, row in enumerate(results, start=1):
-            print(f"{idx}. - Вакансия: {row[0]} - Зарплата от: {row[1]}")
+            print(f"{idx}. Вакансия: {row[0]} - Зарплата от: {row[1]}")
         conn.close()
 
-    def get_vacancies_with_keyword(self, database_name: str, find: str) -> None:
-        """Получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
+    def get_vacancies_with_keyword(self, database_name: str, keyword: str) -> None:
+        """
+        Возвращает список вакансий, содержащих указанный ключ в описании.
+        Аргументы:
+          - database_name (str): Название базы данных.
+          - keyword (str): Ключ для поиска.
+        """
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем список вакансий с ключевым словом
-            query = f"""
+            query = """
                 SELECT companies.title AS company_name,
                        vacancies.title AS job_title,
                        vacancies.description,
@@ -205,18 +237,17 @@ class DBManager:
                        vacancies.url AS vacancy_link
                 FROM vacancies
                 INNER JOIN companies ON vacancies.company_id = companies.companies_id
-                WHERE vacancies.description LIKE %s
+                WHERE vacancies.description ILIKE %s;
             """
-            cur.execute(query, ("%" + find + "%",))
+            cur.execute(query, ("%" + keyword.lower() + "%",))
             results = cur.fetchall()
 
-            # Проверяем, есть ли результаты
-            if len(results) == 0:
-                print("Нет вакансий, соответствующих вашему запросу.")
-            else:
-                print(f"\nСписок вакансий, в описании которых есть слово '{find}':")
-                for idx, row in enumerate(results, start=1):  # начинаем нумерацию с единицы
-                    print(
-                        f"{idx}. Компания: {row[0]} - Вакансия: {row[1]} - Описание: {row[2]} - Зарплата от: {row[3]}, URL: {row[4]}")
-
+        if not results:
+            print("Нет вакансий, соответствующих вашему запросу.")
+        else:
+            print(f"\nСписок вакансий, в описании которых есть слово '{keyword}':")
+            for idx, row in enumerate(results, start=1):
+                print(
+                    f"{idx}. Компания: {row[0]} - Вакансия: {row[1]} - Описание: {row[2]} - Зарплата от: {row[3]}, URL: {row[4]}"
+                )
         conn.close()

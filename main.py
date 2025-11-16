@@ -1,6 +1,7 @@
+from config import config
 from src.api_connector import HeadHunterAPI
 from src.utils import DBManager
-from config import config
+
 
 def main():
     employer_ids = [
@@ -18,31 +19,39 @@ def main():
 
     # Создаем объект API
     hh_api = HeadHunterAPI()
-
     # Получаем вакансии
     loaded_vacancies = hh_api.get_vacancies(employer_ids)
-
-    # # Печать первых трех полученных вакансий
-    # for i, vacancy in enumerate(loaded_vacancies[:3]):
-    #     print(f"Вакансия №{i + 1}:")
-    #     print(f"- Название: {vacancy['name']}")
-    #     print(f"- Компания: {vacancy['employer']['name']}\n")
     db_manager = DBManager()
     params = config()
+
     db_manager.create_db(loaded_vacancies, "headhunter", params)
-    print("=======================================get_companies_and_vacancies_count=======================================")
-    db_manager.get_companies_and_vacancies_count("headhunter")
-    print("=======================================get_all_vacancies=======================================")
-    db_manager.get_all_vacancies("headhunter")
-    print("=======================================get_avg_salary=======================================")
-    db_manager.get_avg_salary("headhunter")
-    print("=======================================get_vacancies_with_higher_salary=======================================")
-    db_manager.get_vacancies_with_higher_salary("headhunter")
+    print("Привет! Добро пожаловать в программу работы с банковскими транзакциями.")
+    print("Выберите необходимый пункт меню:")
+    print("1. Получить список всех компаний и количество вакансий у каждой компании")
     print(
-        "=======================================get_vacancies_with_keyword=======================================")
-    db_manager.get_vacancies_with_keyword("headhunter","уборка")
+        "2. Получить список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на вакансию"
+    )
+    print("3. Получить среднюю зарплату по вакансиям")
+    print(
+        "4. Получить список всех вакансий, у которых зарплата выше средней по всем вакансиям"
+    )
+    print(
+        "5. Получить список всех вакансий, в названии которых содержатся переданные в метод слова"
+    )
+    source = input().strip()
+    if source == "1":
+        db_manager.get_companies_and_vacancies_count("headhunter")
+    elif source == "2":
+        db_manager.get_all_vacancies("headhunter")
+    elif source == "3":
+        db_manager.get_avg_salary("headhunter")
+    elif source == "4":
+        db_manager.get_vacancies_with_higher_salary("headhunter")
+    elif source == "5":
+        print("Введите поисковое слово:")
+        key = input().strip()
+        db_manager.get_vacancies_with_keyword("headhunter", key)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
