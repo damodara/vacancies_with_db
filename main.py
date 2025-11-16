@@ -37,8 +37,10 @@ def main():
     print("=======================================get_avg_salary=======================================")
     db_manager.get_avg_salary("headhunter")
     print("=======================================get_vacancies_with_higher_salary=======================================")
-    # db_manager.get_vacancies_with_higher_salary("headhunter")
-
+    db_manager.get_vacancies_with_higher_salary("headhunter")
+    print(
+        "=======================================get_vacancies_with_keyword=======================================")
+    db_manager.get_vacancies_with_keyword("headhunter","уборка")
 
 
 

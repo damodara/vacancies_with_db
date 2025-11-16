@@ -117,8 +117,8 @@ class DBManager:
             # print(results)
         # Вывод результата
         print("\nСписок компаний и количество вакансий:")
-        for row in results:
-            print(f" - {row[0]} - Количество вакансий: {row[1]}")
+        for idx, row in enumerate(results, start=1):
+            print(f"{idx}. Компания: - {row[0]} - Количество вакансий: {row[1]}")
         conn.close()
 
 
@@ -128,7 +128,7 @@ class DBManager:
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем компании и количество вакансий
+            # Запрашиваем список вакансий
             cur.execute("""
                         SELECT 
                             companies.title AS company_name, 
@@ -144,8 +144,8 @@ class DBManager:
             # print(results)
         # Вывод результата
         print("\nСписок вакансий:")
-        for row in results:
-            print(f" - {row[0]} - Вакансия: {row[1]} - Зарплата от: {row[2]}, URL: {row[3]}")
+        for idx, row in enumerate(results, start=1):
+            print(f"{idx}. Компания: - {row[0]} - Вакансия: {row[1]} - Зарплата от: {row[2]}, URL: {row[3]}")
         conn.close()
 
 
@@ -154,7 +154,7 @@ class DBManager:
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            # Запрашиваем компании и количество вакансий
+            # Запрашиваем среднюю зарплату
             cur.execute("""
                         SELECT AVG(salary)
                         FROM vacancies
@@ -170,8 +170,53 @@ class DBManager:
 
     def get_vacancies_with_higher_salary(self, database_name: str) -> None:
         """получает список всех вакансий, у которых зарплата выше средней по всем вакансиям."""
-        pass
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            # Запрашиваем вакансии и их зарплату
+            cur.execute("""
+                        SELECT title, salary
+                        FROM vacancies
+                        WHERE salary > (
+                            SELECT AVG(salary)
+                            FROM vacancies
+                        )
+                        ORDER BY SALARY;
+                        """)
+            results = cur.fetchall()
+            # print(results)
+        # Вывод результата
+        print("\nВакансии, у которых зарплата выше средней:")
+        for idx, row in enumerate(results, start=1):
+            print(f"{idx}. - Вакансия: {row[0]} - Зарплата от: {row[1]}")
+        conn.close()
 
-    def get_vacancies_with_keyword(self, database_name: str) -> None:
-        """получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
-        pass
+    def get_vacancies_with_keyword(self, database_name: str, find: str) -> None:
+        """Получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            # Запрашиваем список вакансий с ключевым словом
+            query = f"""
+                SELECT companies.title AS company_name,
+                       vacancies.title AS job_title,
+                       vacancies.description,
+                       vacancies.salary AS salary,
+                       vacancies.url AS vacancy_link
+                FROM vacancies
+                INNER JOIN companies ON vacancies.company_id = companies.companies_id
+                WHERE vacancies.description LIKE %s
+            """
+            cur.execute(query, ("%" + find + "%",))
+            results = cur.fetchall()
+
+            # Проверяем, есть ли результаты
+            if len(results) == 0:
+                print("Нет вакансий, соответствующих вашему запросу.")
+            else:
+                print(f"\nСписок вакансий, в описании которых есть слово '{find}':")
+                for idx, row in enumerate(results, start=1):  # начинаем нумерацию с единицы
+                    print(
+                        f"{idx}. Компания: {row[0]} - Вакансия: {row[1]} - Описание: {row[2]} - Зарплата от: {row[3]}, URL: {row[4]}")
+
+        conn.close()
