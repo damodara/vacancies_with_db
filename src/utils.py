@@ -114,77 +114,64 @@ class DBManager:
                 GROUP BY companies.companies_id
             """)
             results = cur.fetchall()
-            print(results)
+            # print(results)
         # Вывод результата
         print("\nСписок компаний и количество вакансий:")
         for row in results:
             print(f" - {row[0]} - Количество вакансий: {row[1]}")
-
         conn.close()
 
 
-    def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
+    def get_all_vacancies(self, database_name: str) -> None:
         """получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на
         вакансию."""
         params = config()
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
-            for company in loaded_vacancies:
-                company_title = company['employer']['name']
-                description = company['snippet']['responsibility']
-                salary = company['salary']['from'] if company['salary'] else None
-                url = company['alternate_url']
-                cur.execute("""
-                SELECT vacancies_id
-                FROM vacancies
-                    
-            """)
-                existing_vacancy = cur.fetchone()
+            # Запрашиваем компании и количество вакансий
+            cur.execute("""
+                        SELECT 
+                            companies.title AS company_name, 
+                            vacancies.title AS job_title, 
+                            vacancies.salary AS salary, 
+                            vacancies.url AS vacancy_link
+                        FROM 
+                            vacancies
+                        INNER JOIN 
+                            companies ON vacancies.company_id = companies.companies_id;
+                        """)
+            results = cur.fetchall()
+            # print(results)
+        # Вывод результата
+        print("\nСписок вакансий:")
+        for row in results:
+            print(f" - {row[0]} - Вакансия: {row[1]} - Зарплата от: {row[2]}, URL: {row[3]}")
+        conn.close()
 
 
-        # list_vacancies = []
-        #
-        # for vacancy in loaded_vacancies:
-        #     company_name = vacancy['employer']['name']
-        #     vacancy_name = vacancy['name']
-        #     salary = vacancy['salary'].get('from') if vacancy.get('salary') else None
-        #     link = vacancy['alternate_url']
-        #
-        #     list_vacancies.append({
-        #         'company': company_name,
-        #         'job_title': vacancy_name,
-        #         'salary': salary,
-        #         'link': link
-        #     })
-        #
-        # # Красивый вывод списка вакансий
-        # print("\nСписок вакансий:")
-        # for idx, vacancy_data in enumerate(list_vacancies, start=1):
-        #     print(
-        #         f"{idx}. {vacancy_data['job_title']} ({vacancy_data['company']}) - Зарплата: {vacancy_data['salary']}, ссылка: {vacancy_data['link']}")
-
-
-
-
-    def get_avg_salary(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
+    def get_avg_salary(self, database_name: str) -> None:
         """получает среднюю зарплату по вакансиям."""
-        total_salary = 0
-        count = 0
-        for vacancy in loaded_vacancies:
-            salary = vacancy['salary'].get('from')
-            if salary:
-                total_salary += salary
-                count += 1
-        avg_salary = total_salary / count
-        rounded_salary = round(avg_salary, 2)
-        print(f"Среднаяя зарплата: {rounded_salary} руб.")
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            # Запрашиваем компании и количество вакансий
+            cur.execute("""
+                        SELECT AVG(salary)
+                        FROM vacancies
+                        """)
+            results = cur.fetchall()
+            # print(results)
+        # Вывод результата
+        print("\nСредняя зарплата:")
+        for row in results:
+            print(f" - {round(row[0])} руб")
+        conn.close()
 
 
-
-    def get_vacancies_with_higher_salary(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
+    def get_vacancies_with_higher_salary(self, database_name: str) -> None:
         """получает список всех вакансий, у которых зарплата выше средней по всем вакансиям."""
         pass
 
-    def get_vacancies_with_keyword(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
+    def get_vacancies_with_keyword(self, database_name: str) -> None:
         """получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
         pass

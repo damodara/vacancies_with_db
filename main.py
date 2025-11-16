@@ -33,11 +33,11 @@ def main():
     print("=======================================get_companies_and_vacancies_count=======================================")
     db_manager.get_companies_and_vacancies_count("headhunter")
     print("=======================================get_all_vacancies=======================================")
-    # db_manager.get_all_vacancies("headhunter")
+    db_manager.get_all_vacancies("headhunter")
     print("=======================================get_avg_salary=======================================")
-    # db_manager.get_avg_salary("headhunter")
-
-    # db_manager.get_avg_salary("headhunter")
+    db_manager.get_avg_salary("headhunter")
+    print("=======================================get_vacancies_with_higher_salary=======================================")
+    # db_manager.get_vacancies_with_higher_salary("headhunter")
 
 
 
