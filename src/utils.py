@@ -8,7 +8,7 @@ class DBManager:
     def __init__(self):
         self.db = None
 
-    def create_db(self, database_name: str, params: dict[str, Any]) -> None:
+    def create_db(self,loaded_vacancies,  database_name: str, params: dict[str, Any]) -> None:
         """Создание БД PostgreSQL"""
         conn = psycopg2.connect(dbname='postgres', **params)
         conn.autocommit = True
@@ -29,7 +29,7 @@ class DBManager:
 
         cur.close()
         conn.close()
-
+        #Создание таблицы companies
         conn = psycopg2.connect(dbname=database_name, **params)
         with conn.cursor() as cur:
             cur.execute("""
@@ -38,8 +38,8 @@ class DBManager:
                     title VARCHAR(255) UNIQUE 
                 )
             """)
-            print("таблица companies создана")
-
+            print("Таблица companies создана")
+        # Создание таблицы vacancies
         with conn.cursor() as cur:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS vacancies
@@ -52,15 +52,8 @@ class DBManager:
                             url          VARCHAR UNIQUE -- Ограничиваем уникальностью поле url
                         )
                         """)
-            print("таблица vacancies создана")
-        conn.commit()
-        conn.close()
-
-    def get_companies_and_vacancies_count(self, loaded_vacancies: list[dict[str, Any]], database_name: str) -> None:
-        """получает список всех компаний и количество вакансий у каждой компании"""
-        params = config()
-        conn = psycopg2.connect(dbname=database_name, **params)
-
+            print("Таблица vacancies создана")
+        # Наполнение таблицы companies и vacancies
         with conn.cursor() as cur:
             for company in loaded_vacancies:
                 company_title = company['employer']['name']
@@ -107,45 +100,68 @@ class DBManager:
 
         conn.commit()
         conn.close()
-        print("данные добавили в таблицы")
 
+    def get_companies_and_vacancies_count(self, database_name: str) -> None:
+        """Получает список всех компаний и количество вакансий у каждой компании из базы данных"""
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            # Запрашиваем компании и количество вакансий
+            cur.execute("""
+                SELECT companies.title, COUNT(vacancies.vacancies_id) AS vacancies_count
+                FROM companies
+                LEFT JOIN vacancies ON companies.companies_id = vacancies.company_id
+                GROUP BY companies.companies_id
+            """)
+            results = cur.fetchall()
+            print(results)
+        # Вывод результата
+        print("\nСписок компаний и количество вакансий:")
+        for row in results:
+            print(f" - {row[0]} - Количество вакансий: {row[1]}")
 
-
-        # all_companies_name = set()
-        # all_companies_count: int
-        # for vacancy in loaded_vacancies:
-        #     company_name = vacancy['employer']['name']
-        #     all_companies_name.add(company_name)
-        #
-        # print(f"Список всех компаний: {all_companies_name}")
-        # all_companies_count = len(all_companies_name)
-        # print(f"Количество всех компаний: {all_companies_count}")
-
+        conn.close()
 
 
     def get_all_vacancies(self, loaded_vacancies:  list[dict[str, Any]], database_name: str) -> None:
         """получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на
         вакансию."""
-        list_vacancies = []
+        params = config()
+        conn = psycopg2.connect(dbname=database_name, **params)
+        with conn.cursor() as cur:
+            for company in loaded_vacancies:
+                company_title = company['employer']['name']
+                description = company['snippet']['responsibility']
+                salary = company['salary']['from'] if company['salary'] else None
+                url = company['alternate_url']
+                cur.execute("""
+                SELECT vacancies_id
+                FROM vacancies
+                    
+            """)
+                existing_vacancy = cur.fetchone()
 
-        for vacancy in loaded_vacancies:
-            company_name = vacancy['employer']['name']
-            vacancy_name = vacancy['name']
-            salary = vacancy['salary'].get('from') if vacancy.get('salary') else None
-            link = vacancy['alternate_url']
 
-            list_vacancies.append({
-                'company': company_name,
-                'job_title': vacancy_name,
-                'salary': salary,
-                'link': link
-            })
-
-        # Красивый вывод списка вакансий
-        print("\nСписок вакансий:")
-        for idx, vacancy_data in enumerate(list_vacancies, start=1):
-            print(
-                f"{idx}. {vacancy_data['job_title']} ({vacancy_data['company']}) - Зарплата: {vacancy_data['salary']}, ссылка: {vacancy_data['link']}")
+        # list_vacancies = []
+        #
+        # for vacancy in loaded_vacancies:
+        #     company_name = vacancy['employer']['name']
+        #     vacancy_name = vacancy['name']
+        #     salary = vacancy['salary'].get('from') if vacancy.get('salary') else None
+        #     link = vacancy['alternate_url']
+        #
+        #     list_vacancies.append({
+        #         'company': company_name,
+        #         'job_title': vacancy_name,
+        #         'salary': salary,
+        #         'link': link
+        #     })
+        #
+        # # Красивый вывод списка вакансий
+        # print("\nСписок вакансий:")
+        # for idx, vacancy_data in enumerate(list_vacancies, start=1):
+        #     print(
+        #         f"{idx}. {vacancy_data['job_title']} ({vacancy_data['company']}) - Зарплата: {vacancy_data['salary']}, ссылка: {vacancy_data['link']}")
 
 
 

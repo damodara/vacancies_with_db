@@ -29,10 +29,15 @@ def main():
     #     print(f"- Компания: {vacancy['employer']['name']}\n")
     db_manager = DBManager()
     params = config()
-    db_manager.create_db("headhunter", params)
-    db_manager.get_companies_and_vacancies_count(loaded_vacancies, "headhunter")
-    # db_manager.get_all_vacancies(loaded_vacancies)
-    # db_manager.get_avg_salary(loaded_vacancies)
+    db_manager.create_db(loaded_vacancies, "headhunter", params)
+    print("=======================================get_companies_and_vacancies_count=======================================")
+    db_manager.get_companies_and_vacancies_count("headhunter")
+    print("=======================================get_all_vacancies=======================================")
+    # db_manager.get_all_vacancies("headhunter")
+    print("=======================================get_avg_salary=======================================")
+    # db_manager.get_avg_salary("headhunter")
+
+    # db_manager.get_avg_salary("headhunter")
 
 
 
